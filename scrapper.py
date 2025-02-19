@@ -8,33 +8,42 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 import os
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver import Chrome
+from selenium.webdriver import Chrome, Edge
 from bs4 import BeautifulSoup, SoupStrainer
 import logging
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def setup_driver():
-    """Setup and return configured WebDriver"""
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    
-    # Check if running on Linux (deployment) or Windows (development)
-    if os.name == 'nt':  # Windows
-        driver_path = "edgedriver_win64/msedgedriver.exe"
-        from selenium.webdriver.edge.service import Service as EdgeService
-        from selenium.webdriver.edge.options import Options as EdgeOptions
-        from selenium.webdriver import Edge
-        
-        edge_options = EdgeOptions()
-        edge_options.add_argument('--headless')
-        service = EdgeService(driver_path)
-        return Edge(service=service, options=edge_options)
-    else:  # Linux
-        return Chrome(options=chrome_options)
+    """Setup and return configured WebDriver for any environment"""
+    try:
+        if os.name == 'nt':  # Windows
+            # Use Edge
+            driver_path = "edgedriver_win64/msedgedriver.exe"
+            from selenium.webdriver.edge.service import Service as EdgeService
+            from selenium.webdriver.edge.options import Options as EdgeOptions
+            
+            edge_options = EdgeOptions()
+            edge_options.add_argument('--headless')
+            service = EdgeService(driver_path)
+            return Edge(service=service, options=edge_options)
+        else:  # Linux
+            # Use Chrome with automatic driver installation
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            
+            # Automatically download and setup ChromeDriver
+            service = Service(ChromeDriverManager().install())
+            return Chrome(service=service, options=chrome_options)
+            
+    except Exception as e:
+        logging.error(f"Failed to setup driver: {str(e)}")
+        raise
 
 def login_to_portal(driver, username, password):
     """Handle login process"""
